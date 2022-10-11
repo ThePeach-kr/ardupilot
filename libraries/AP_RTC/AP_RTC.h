@@ -58,7 +58,7 @@ public:
 
     void time_add(struct time_spec *output, const struct time_spec *left, const struct time_spec *right);
     void time_sub(struct time_spec *output, const struct time_spec *left, const struct time_spec *right);
-    
+
     // replacement for mktime()
     static time_t mktime(const struct tm *t);
 
@@ -71,6 +71,7 @@ public:
     HAL_Semaphore &get_semaphore(void) {
         return rsem;
     }
+    uint32_t takeoff_start_time = 0;
     
 private:
 
