@@ -523,6 +523,15 @@ protected:
         const uint16_t interval_ms = 10000;
     }  _timesync_request;
 
+    //timestamp
+    static struct time_spec t1, t2, t3, t4;
+
+    //PTP msg handler
+    void handle_ptp_timesync(const mavlink_message_t &msg);
+    void handle_ptp_sync(mavlink_ptp_timesync_t &packet);
+    void handle_ptp_follow_up(mavlink_ptp_timesync_t &packet);
+    void handle_ptp_delay_resp(mavlink_ptp_timesync_t &packet);
+
     void handle_statustext(const mavlink_message_t &msg) const;
     void handle_named_value(const mavlink_message_t &msg) const;
 

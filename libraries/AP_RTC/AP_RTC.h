@@ -4,6 +4,18 @@
 
 #include <stdint.h>
 
+#define PTP_SYNC 0x00
+#define PTP_FOLLOW_UP 0x08
+#define PTP_DELAY_REQUEST 0x01
+#define PTP_DELAY_RESPONSE 0x09
+#define TAKEOFF_TIME 0x03
+#define PTP_DEFAULT_STATE 255
+
+struct time_spec {
+    long	sec;		/* seconds */
+    long	nsec;	/* and nanoseconds */
+};
+
 class AP_RTC {
 
 public:
@@ -44,6 +56,9 @@ public:
 
     uint32_t get_time_utc(int32_t hour, int32_t min, int32_t sec, int32_t ms);
 
+    void time_add(struct time_spec *output, const struct time_spec *left, const struct time_spec *right);
+    void time_sub(struct time_spec *output, const struct time_spec *left, const struct time_spec *right);
+    
     // replacement for mktime()
     static time_t mktime(const struct tm *t);
 
