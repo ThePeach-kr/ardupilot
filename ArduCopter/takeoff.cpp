@@ -179,10 +179,15 @@ void Mode::auto_takeoff_run()
         attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.yaw(), auto_yaw.rate_cds());
     }
 
+    uint64_t get_time;
+    AP::rtc().get_utc_usec(get_time);
+    get_time /= 1000000;
+
     // handle takeoff completion
     bool reached_altitude = (copter.pos_control->get_pos_target_z_cm() - auto_takeoff_start_alt_cm) >= ((auto_takeoff_complete_alt_cm + terr_offset - auto_takeoff_start_alt_cm) * 0.90);
     bool reached_climb_rate = copter.pos_control->get_vel_desired_cms().z < copter.pos_control->get_max_speed_up_cms() * 0.1;
-    auto_takeoff_complete = reached_altitude && reached_climb_rate;
+    bool reached_time = get_time >= AP::rtc().takeoff_start_time + 5; 
+    auto_takeoff_complete = reached_altitude && reached_climb_rate && reached_time;
 
     // calculate completion for location in case it is needed for a smooth transition to wp_nav
     if (auto_takeoff_complete) {
