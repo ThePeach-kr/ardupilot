@@ -2192,8 +2192,7 @@ class AutoTestCopter(AutoTest):
 
         self.set_rc(2, 1500)
         self.context_pop()
-        self.disarm_vehicle(force=True)
-        self.reboot_sitl()
+        self.reboot_sitl(force=True)
 
         if ex is not None:
             raise ex
@@ -2329,22 +2328,6 @@ class AutoTestCopter(AutoTest):
         # complete by "customising" the commandline here:
         self.customise_SITL_commandline([])
 
-        self.context_push()
-
-        ex = None
-
-        try:
-            self.fly_autotune_switch_body()
-        except Exception as e:
-            self.print_exception_caught(e)
-            ex = e
-
-        self.context_pop()
-
-        if ex is not None:
-            raise ex
-
-    def fly_autotune_switch_body(self):
         self.set_parameters({
             "RC8_OPTION": 17,
             "ATC_RAT_RLL_FLTT": 20,
@@ -2419,6 +2402,62 @@ class AutoTestCopter(AutoTest):
 
         raise NotAchievedException("AUTOTUNE failed (%u seconds)" %
                                    (self.get_sim_time() - tstart))
+
+    def EK3_RNG_USE_HGT(self):
+        '''basic tests for using rangefinder when speed and height below thresholds'''
+        # this takes advantage of some code in send_status_report
+        # which only reports terrain variance when using switch-height
+        # and using the rangefinder
+        self.context_push()
+
+        self.set_analog_rangefinder_parameters()
+        # set use-height to 20m (the parameter is a percentage of max range)
+        self.set_parameters({
+            'EK3_RNG_USE_HGT': 200000 / self.get_parameter('RNGFND1_MAX_CM'),
+        })
+        self.reboot_sitl()
+
+        # add a listener that verifies rangefinder innovations look good
+        alt = None
+
+        def verify_innov(mav, m):
+            global alt
+            if m.get_type() == 'GLOBAL_POSITION_INT':
+                alt = m.relative_alt * 0.001  # mm -> m
+                return
+            if m.get_type() != 'EKF_STATUS_REPORT':
+                return
+            if alt > 1 and alt < 8:  # 8 is very low, but it takes a long time to start to use the rangefinder again
+                zero_variance_wanted = False
+            elif alt > 20:
+                zero_variance_wanted = True
+            else:
+                return
+            variance = m.terrain_alt_variance
+            if zero_variance_wanted and variance != 0:
+                raise NotAchievedException("Wanted zero variance at height %f, got %f" % (alt, variance))
+            elif not zero_variance_wanted and variance == 0:
+                raise NotAchievedException("Wanted non-zero variance at alt=%f, got zero" % alt)
+
+        self.install_message_hook_context(verify_innov)
+
+        self.takeoff(50, mode='GUIDED')
+        current_alt = self.mav.location().alt
+        target_position = mavutil.location(
+            -35.362938,
+            149.165185,
+            current_alt,
+            0
+        )
+
+        self.fly_guided_move_to(target_position, timeout=300)
+
+        self.change_mode('LAND')
+        self.wait_disarmed()
+
+        self.context_pop()
+
+        self.reboot_sitl()
 
     def CopterMission(self):
         '''fly mission which tests a significant number of commands'''
@@ -4514,6 +4553,50 @@ class AutoTestCopter(AutoTest):
 
         if ex is not None:
             raise ex
+
+    def Weathervane(self):
+        '''Test copter weathervaning'''
+        # We test nose into wind code paths and yaw direction here and test side into wind
+        # yaw direction in QuadPlane tests to reduce repetition.
+        self.set_parameters({
+            "SIM_WIND_SPD": 10,
+            "SIM_WIND_DIR": 100,
+            "GUID_OPTIONS": 129, # allow weathervaning and arming from tx in guided
+            "AUTO_OPTIONS": 131, # allow arming in auto, take off without raising the stick, and weathervaning
+            "WVANE_ENABLE": 1,
+            "WVANE_GAIN": 3,
+            "WVANE_VELZ_MAX": 1,
+            "WVANE_SPD_MAX": 2
+        })
+
+        self.progress("Test weathervaning in auto")
+        self.load_mission("weathervane_mission.txt", strict=False)
+
+        self.change_mode("AUTO")
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+
+        self.wait_statustext("Weathervane Active", timeout=60)
+        self.do_RTL()
+        self.wait_disarmed()
+        self.change_mode("GUIDED")
+
+        # After take off command in guided we enter the velaccl sub mode
+        self.progress("Test weathervaning in guided vel-accel")
+        self.set_rc(3, 1000)
+        self.wait_ready_to_arm()
+
+        self.arm_vehicle()
+        self.user_takeoff(alt_min=15)
+        # Wait for heading to match wind direction.
+        self.wait_heading(100, accuracy=8, timeout=100)
+
+        self.progress("Test weathervaning in guided pos only")
+        # Travel directly north to align heading north and build some airspeed.
+        self.fly_guided_move_local(x=40, y=0, z_up=15)
+        # Wait for heading to match wind direction.
+        self.wait_heading(100, accuracy=8, timeout=100)
+        self.do_RTL()
 
     def GuidedSubModeChange(self):
         """"Ensure we can move around in guided after a takeoff command."""
@@ -6681,18 +6764,18 @@ class AutoTestCopter(AutoTest):
             self.takeoff(10, mode="LOITER")
             self.set_rc(2, 1400)
             west_loc = mavutil.location(-35.362919, 149.165055, 0, 0)
-            self.wait_location(west_loc, accuracy=7)
+            self.wait_location(west_loc, accuracy=1)
             self.reach_heading_manual(0)
             north_loc = mavutil.location(-35.362881, 149.165103, 0, 0)
-            self.wait_location(north_loc, accuracy=7)
+            self.wait_location(north_loc, accuracy=1)
             self.set_rc(2, 1500)
             self.set_rc(1, 1600)
             east_loc = mavutil.location(-35.362986, 149.165227, 0, 0)
-            self.wait_location(east_loc, accuracy=7)
+            self.wait_location(east_loc, accuracy=1)
             self.set_rc(1, 1500)
             self.set_rc(2, 1600)
             south_loc = mavutil.location(-35.363025, 149.165182, 0, 0)
-            self.wait_location(south_loc, accuracy=7)
+            self.wait_location(south_loc, accuracy=1)
             self.set_rc(2, 1500)
             self.do_RTL()
 
@@ -6730,10 +6813,14 @@ class AutoTestCopter(AutoTest):
                 "BARO1_WCF_BCK": -0.300000,
                 "BARO1_WCF_RGT": 0.300000,
                 "BARO1_WCF_LFT": 0.300000,
+                "BARO1_WCF_UP": 0.300000,
+                "BARO1_WCF_DN": 0.300000,
                 "SIM_BARO_WCF_FWD": -0.300000,
                 "SIM_BARO_WCF_BAK": -0.300000,
                 "SIM_BARO_WCF_RGT": 0.300000,
                 "SIM_BARO_WCF_LFT": 0.300000,
+                "SIM_BARO_WCF_UP": 0.300000,
+                "SIM_BARO_WCF_DN": 0.300000,
                 "SIM_WIND_DIR": wind_dir_truth,
                 "SIM_WIND_SPD": wind_spd_truth,
                 "SIM_WIND_T": 1.000000,
@@ -9182,6 +9269,7 @@ class AutoTestCopter(AutoTest):
              self.RichenPower,
              self.IE24,
              self.MAVLandedStateTakeoff,
+             self.Weathervane,
         ])
         return ret
 
@@ -9246,6 +9334,7 @@ class AutoTestCopter(AutoTest):
             self.WatchAlts,
             self.GuidedEKFLaneChange,
             self.Sprayer,
+            self.EK3_RNG_USE_HGT
         ])
         return ret
 

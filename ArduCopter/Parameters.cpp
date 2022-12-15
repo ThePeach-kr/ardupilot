@@ -472,7 +472,7 @@ const AP_Param::Info Copter::var_info[] = {
     GOBJECT(parachute, "CHUTE_", AP_Parachute),
 #endif
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     // @Group: LGR_
     // @Path: ../libraries/AP_LandingGear/AP_LandingGear.cpp
     GOBJECT(landinggear,    "LGR_", AP_LandingGear),
@@ -983,7 +983,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Param: AUTO_OPTIONS
     // @DisplayName: Auto mode options
     // @Description: A range of options that can be applied to change auto mode behaviour. Allow Arming allows the copter to be armed in Auto. Allow Takeoff Without Raising Throttle allows takeoff without the pilot having to raise the throttle. Ignore pilot yaw overrides the pilot's yaw stick being used while in auto.
-    // @Bitmask: 0:Allow Arming,1:Allow Takeoff Without Raising Throttle,2:Ignore pilot yaw
+    // @Bitmask: 0:Allow Arming,1:Allow Takeoff Without Raising Throttle,2:Ignore pilot yaw,7:Allow weathervaning
     // @User: Advanced
     AP_GROUPINFO("AUTO_OPTIONS", 40, ParametersG2, auto_options, 0),
 #endif
@@ -992,7 +992,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Param: GUID_OPTIONS
     // @DisplayName: Guided mode options
     // @Description: Options that can be applied to change guided mode behaviour
-    // @Bitmask: 0:Allow Arming from Transmitter,2:Ignore pilot yaw,3:SetAttitudeTarget interprets Thrust As Thrust,4:Do not stabilize PositionXY,5:Do not stabilize VelocityXY,6:Waypoint navigation used for position targets
+    // @Bitmask: 0:Allow Arming from Transmitter,2:Ignore pilot yaw,3:SetAttitudeTarget interprets Thrust As Thrust,4:Do not stabilize PositionXY,5:Do not stabilize VelocityXY,6:Waypoint navigation used for position targets,7:Allow weathervaning
     // @User: Advanced
     AP_GROUPINFO("GUID_OPTIONS", 41, ParametersG2, guided_options, 0),
 #endif
@@ -1160,6 +1160,14 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_GROUPINFO("TKOFF_RPM_MIN", 58, ParametersG2, takeoff_rpm_min, 0),
 #endif
 
+#if WEATHERVANE_ENABLED == ENABLED
+    // @Group: WVANE_
+    // @Path: ../libraries/AC_AttitudeControl/AC_WeatherVane.cpp
+    AP_SUBGROUPINFO(weathervane, "WVANE_", 59, ParametersG2, AC_WeatherVane),
+#endif
+
+    // ID 60 is reserved for the SHIP_OPS
+
     // ID 62 is reserved for the SHOW_... parameters from the Skybrush fork at
     // https://github.com/skybrush-io/ardupilot
 
@@ -1217,6 +1225,10 @@ ParametersG2::ParametersG2(void)
 #endif
 
     ,command_model_pilot(PILOT_Y_RATE_DEFAULT, PILOT_Y_EXPO_DEFAULT, 0.0f)
+
+#if WEATHERVANE_ENABLED == ENABLED
+    ,weathervane()
+#endif
 {
     AP_Param::setup_object_defaults(this, var_info);
 }
@@ -1290,7 +1302,7 @@ void Copter::load_parameters(void)
     AP_Param::load_all();
     AP_Param::convert_old_parameters(&conversion_table[0], ARRAY_SIZE(conversion_table));
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     // convert landing gear parameters
     // PARAMETER_CONVERSION - Added: Nov-2018
     convert_lgr_parameters();
@@ -1485,10 +1497,7 @@ void Copter::convert_pid_parameters(void)
         // PARAMETER_CONVERSION - Added: Oct-2019
         { Parameters::k_param_pos_control, 388, AP_PARAM_FLOAT, "PSC_ACCZ_FLTE" },
     };
-    uint8_t filt_table_size = ARRAY_SIZE(ff_and_filt_conversion_info);
-    for (uint8_t i=0; i<filt_table_size; i++) {
-        AP_Param::convert_old_parameters(&ff_and_filt_conversion_info[i], 1.0f);
-    }
+    AP_Param::convert_old_parameters(&ff_and_filt_conversion_info[0], ARRAY_SIZE(ff_and_filt_conversion_info));
 
 #if HAL_INS_NUM_HARMONIC_NOTCH_FILTERS > 1
     if (!ins.harmonic_notches[1].params.enabled()) {
@@ -1500,10 +1509,7 @@ void Copter::convert_pid_parameters(void)
             { Parameters::k_param_ins, 357, AP_PARAM_FLOAT, "INS_HNTC2_FREQ" },
             { Parameters::k_param_ins, 421, AP_PARAM_FLOAT, "INS_HNTC2_BW" },
         };
-        uint8_t notchfilt_table_size = ARRAY_SIZE(notchfilt_conversion_info);
-        for (uint8_t i=0; i<notchfilt_table_size; i++) {
-            AP_Param::convert_old_parameters(&notchfilt_conversion_info[i], 1.0f);
-        }
+        AP_Param::convert_old_parameters(&notchfilt_conversion_info[0], ARRAY_SIZE(notchfilt_conversion_info));
         AP_Param::set_default_by_name("INS_HNTC2_MODE", 0);
         AP_Param::set_default_by_name("INS_HNTC2_HMNCS", 1);
     }
@@ -1563,7 +1569,7 @@ void Copter::convert_prx_parameters()
 }
 #endif
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
 /*
   convert landing gear parameters
  */

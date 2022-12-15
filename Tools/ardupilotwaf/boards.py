@@ -423,9 +423,6 @@ class Board:
                 UAVCAN_NULLPTR = 'nullptr'
             )
 
-            env.INCLUDES += [
-                cfg.srcnode.find_dir('modules/uavcan/libuavcan/include').abspath()
-            ]
 
         if cfg.options.build_dates:
             env.build_dates = True
@@ -848,6 +845,9 @@ class esp32(Board):
     def build(self, bld):
         super(esp32, self).build(bld)
         bld.load('esp32')
+
+    def get_name(self):
+        return self.__class__.__name__
 
 
 class chibios(Board):

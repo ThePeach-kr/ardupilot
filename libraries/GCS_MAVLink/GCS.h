@@ -18,6 +18,7 @@
 #include <AP_LTM_Telem/AP_LTM_Telem.h>
 #include <AP_Devo_Telem/AP_Devo_Telem.h>
 #include <AP_Filesystem/AP_Filesystem_config.h>
+#include <AP_Frsky_Telem/AP_Frsky_config.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_OpticalFlow/AP_OpticalFlow.h>
 #include <AP_Mount/AP_Mount.h>
@@ -84,6 +85,28 @@ void gcs_out_of_space_to_send(mavlink_channel_t chan);
         ARRAY_SIZE(stream_name ## _msgs)        \
     }
 #define MAV_STREAM_TERMINATOR { (streams)0, nullptr, 0 }
+
+// code generation; avoid each subclass duplicating these two methods
+// and just changing the name.  These methods allow retrieval of
+// objects specific to the vehicle's subclass, which the vehicle can
+// then call its own specific methods on
+#define GCS_MAVLINK_CHAN_METHOD_DEFINITIONS(subclass_name) \
+    subclass_name *chan(const uint8_t ofs) override {                   \
+        if (ofs > _num_gcs) {                                           \
+            INTERNAL_ERROR(AP_InternalError::error_t::gcs_offset);      \
+            return nullptr;                                             \
+        }                                                               \
+        return (subclass_name *)_chan[ofs];                        \
+    }                                                                   \
+                                                                        \
+    const subclass_name *chan(const uint8_t ofs) const override { \
+        if (ofs > _num_gcs) {                                           \
+            INTERNAL_ERROR(AP_InternalError::error_t::gcs_offset);      \
+            return nullptr;                                             \
+        }                                                               \
+        return (subclass_name *)_chan[ofs];                        \
+    }
+
 
 #define GCS_MAVLINK_NUM_STREAM_RATES 10
 class GCS_MAVLINK_Parameters
@@ -589,6 +612,8 @@ protected:
 
     MAV_RESULT handle_fixed_mag_cal_yaw(const mavlink_command_long_t &packet);
 
+    void handle_manual_control(const mavlink_message_t &msg);
+
     // default empty handling of LANDING_TARGET
     virtual void handle_landing_target(const mavlink_landing_target_t &packet, uint32_t timestamp_ms) { }
     // vehicle-overridable message send function
@@ -910,6 +935,8 @@ private:
     virtual void handle_change_alt_request(AP_Mission::Mission_Command &cmd) {};
     void handle_common_mission_message(const mavlink_message_t &msg);
 
+    virtual void handle_manual_control_axes(const mavlink_manual_control_t &packet, const uint32_t tnow) {};
+
     void handle_vicon_position_estimate(const mavlink_message_t &msg);
     void handle_vision_position_estimate(const mavlink_message_t &msg);
     void handle_global_vision_position_estimate(const mavlink_message_t &msg);
@@ -1098,8 +1125,10 @@ public:
 
     bool out_of_time() const;
 
+#if AP_FRSKY_TELEM_ENABLED
     // frsky backend
     class AP_Frsky_Telem *frsky;
+#endif
 
 #if AP_LTM_TELEM_ENABLED
     // LTM backend
@@ -1136,9 +1165,9 @@ public:
     void enable_high_latency_connections(bool enabled);
 #endif // HAL_HIGH_LATENCY2_ENABLED
 
-protected:
-
     virtual uint8_t sysid_this_mav() const = 0;
+
+protected:
 
     virtual GCS_MAVLINK *new_gcs_mavlink_backend(GCS_MAVLINK_Parameters &params,
                                                  AP_HAL::UARTDriver &uart) = 0;

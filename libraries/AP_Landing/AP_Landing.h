@@ -165,14 +165,15 @@ private:
     AP_Int8 flap_percent;
     AP_Int8 throttle_slewrate;
     AP_Int8 type;
+    AP_Int8 flare_effectivness_pct;
 
     // Land Type STANDARD GLIDE SLOPE
 
-    enum  {
-        SLOPE_STAGE_NORMAL,
-        SLOPE_STAGE_APPROACH,
-        SLOPE_STAGE_PREFLARE,
-        SLOPE_STAGE_FINAL
+    enum class SlopeStage  {
+        NORMAL = 0,
+        APPROACH = 1,
+        PREFLARE = 2,
+        FINAL = 3,
     } type_slope_stage;
 
     struct {

@@ -516,7 +516,7 @@ private:
 #endif
 
     // Landing Gear Controller
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     AP_LandingGear landinggear;
 #endif
 
@@ -694,7 +694,7 @@ private:
     void set_accel_throttle_I_from_pilot_throttle();
     void rotate_body_frame_to_NE(float &x, float &y);
     uint16_t get_pilot_speed_dn() const;
-    void run_rate_controller() { attitude_control->rate_controller_run(); }
+    void run_rate_controller();
 
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     void run_custom_controller() { custom_control.update(); }
@@ -804,7 +804,7 @@ private:
     void set_land_complete_maybe(bool b);
     void update_throttle_mix();
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     // landing_gear.cpp
     void landinggear_update();
 #endif

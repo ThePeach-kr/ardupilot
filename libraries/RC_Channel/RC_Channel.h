@@ -239,6 +239,7 @@ public:
         CAMERA_ZOOM =        167, // camera zoom high = zoom in, middle = hold, low = zoom out
         CAMERA_MANUAL_FOCUS = 168,// camera manual focus.  high = long shot, middle = stop focus, low = close shot
         CAMERA_AUTO_FOCUS =  169, // camera auto focus
+        QSTABILIZE =         170, // QuadPlane QStabilize mode
 
         // inputs from 200 will eventually used to replace RCMAP
         ROLL =               201, // roll input
@@ -545,6 +546,10 @@ public:
         return get_singleton() != nullptr && (_options & uint32_t(Option::USE_CRSF_LQ_AS_RSSI)) != 0;
     }
 
+    bool crsf_fm_disarm_star(void) const {
+        return get_singleton() != nullptr && (_options & uint32_t(Option::CRSF_FM_DISARM_STAR)) != 0;
+    }
+
     // returns true if overrides should time out.  If true is returned
     // then returned_timeout_ms will contain the timeout in
     // milliseconds, with 0 meaning overrides are disabled.
@@ -601,7 +606,10 @@ public:
     // get last aux cached value for scripting. Returns false if never set, otherwise 0,1,2
     bool get_aux_cached(RC_Channel::aux_func_t aux_fn, uint8_t &pos);
 #endif
-    
+
+    // get failsafe timeout in milliseconds
+    uint32_t get_fs_timeout_ms() const { return MAX(_fs_timeout * 1000, 100); }
+
 protected:
 
     enum class Option {
@@ -617,6 +625,7 @@ protected:
         SUPPRESS_CRSF_MESSAGE   = (1U << 9), // suppress CRSF mode/rate message for ELRS systems
         MULTI_RECEIVER_SUPPORT  = (1U << 10), // allow multiple receivers
         USE_CRSF_LQ_AS_RSSI     = (1U << 11), // returns CRSF link quality as RSSI value, instead of RSSI
+        CRSF_FM_DISARM_STAR     = (1U << 12), // when disarmed, add a star at the end of the flight mode in CRSF telemetry
     };
 
     void new_override_received() {
@@ -637,6 +646,7 @@ private:
     AP_Float _override_timeout;
     AP_Int32  _options;
     AP_Int32  _protocols;
+    AP_Float _fs_timeout;
 
     RC_Channel *flight_mode_channel() const;
 

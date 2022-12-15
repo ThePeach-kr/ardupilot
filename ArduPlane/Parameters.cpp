@@ -1096,7 +1096,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("TKOFF_ACCEL_CNT", 15, ParametersG2, takeoff_throttle_accel_count, 1),
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     // @Group: LGR_
     // @Path: ../libraries/AP_LandingGear/AP_LandingGear.cpp
     AP_SUBGROUPINFO(landing_gear, "LGR_", 16, ParametersG2, AP_LandingGear),
@@ -1523,10 +1523,7 @@ void Plane::load_parameters(void)
             { Parameters::k_param_ins, 357, AP_PARAM_FLOAT, "INS_HNTC2_FREQ" },
             { Parameters::k_param_ins, 421, AP_PARAM_FLOAT, "INS_HNTC2_BW" },
         };
-        uint8_t notchfilt_table_size = ARRAY_SIZE(notchfilt_conversion_info);
-        for (uint8_t i=0; i<notchfilt_table_size; i++) {
-            AP_Param::convert_old_parameters(&notchfilt_conversion_info[i], 1.0f);
-        }
+        AP_Param::convert_old_parameters(&notchfilt_conversion_info[0], ARRAY_SIZE(notchfilt_conversion_info));
         AP_Param::set_default_by_name("INS_HNTC2_MODE", 0);
         AP_Param::set_default_by_name("INS_HNTC2_HMNCS", 1);
     }
